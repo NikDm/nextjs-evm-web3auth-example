@@ -4,207 +4,212 @@ import { CHAIN_NAMESPACES, SafeEventEmitterProvider } from "@web3auth/base";
 import RPC from "./web3RPC"; // for using web3.js
 // import RPC from "./ethersRPC"; // for using ethers.js
 
-const clientId = "YOUR_CLIENT_ID"; // get from https://dashboard.web3auth.io
+const clientId =
+    "BK154QXl0CvX3W-AMPfsI2eh6jcpx-zaOjqsykL1kjO2f-IT5--f4LNxmuSdbJ0LICxEw8pXdYsWhQjKpDMPeko"; // get from https://dashboard.web3auth.io
 
 function App() {
-  const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
-  const [provider, setProvider] = useState<SafeEventEmitterProvider | null>(
-    null
-  );
+    const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null);
+    const [provider, setProvider] = useState<SafeEventEmitterProvider | null>(
+        null
+    );
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const web3auth = new Web3Auth({
-          clientId,
-          chainConfig: {
-            chainNamespace: CHAIN_NAMESPACES.EIP155,
-            chainId: "0x1",
-            rpcTarget: "https://rpc.ankr.com/eth", // This is the public RPC we have added, please pass on your own endpoint while creating an app
-          },
-        });
+    useEffect(() => {
+        const init = async () => {
+            try {
+                const web3auth = new Web3Auth({
+                    clientId,
+                    chainConfig: {
+                        chainNamespace: CHAIN_NAMESPACES.EIP155,
+                        chainId: "0x1",
+                        rpcTarget: "https://rpc.ankr.com/eth", // This is the public RPC we have added, please pass on your own endpoint while creating an app
+                    },
+                });
 
-        setWeb3auth(web3auth);
+                setWeb3auth(web3auth);
 
-        await web3auth.initModal();
-        if (web3auth.provider) {
-          setProvider(web3auth.provider);
+                await web3auth.initModal();
+                if (web3auth.provider) {
+                    setProvider(web3auth.provider);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        init();
+    }, []);
+
+    const login = async () => {
+        if (!web3auth) {
+            console.log("web3auth not initialized yet");
+            return;
         }
-      } catch (error) {
-        console.error(error);
-      }
+        const web3authProvider = await web3auth.connect();
+        setProvider(web3authProvider);
     };
 
-    init();
-  }, []);
+    const getUserInfo = async () => {
+        if (!web3auth) {
+            console.log("web3auth not initialized yet");
+            return;
+        }
+        const user = await web3auth.getUserInfo();
+        console.log("USER", user);
 
-  const login = async () => {
-    if (!web3auth) {
-      console.log("web3auth not initialized yet");
-      return;
-    }
-    const web3authProvider = await web3auth.connect();
-    setProvider(web3authProvider);
-  };
+        // parse the idToken from the user object
+        const base64Url = user?.idToken.split(".")[1];
+        const base64 = base64Url.replace("-", "+").replace("_", "/");
+        const parsedToken = JSON.parse(window.atob(base64));
 
-  const getUserInfo = async () => {
-    if (!web3auth) {
-      console.log("web3auth not initialized yet");
-      return;
-    }
-    const user = await web3auth.getUserInfo();
-    console.log("USER", user);
+        // Validate idToken with server
+        const res = await fetch("/api/hello", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + user.idToken,
+            },
+            body: JSON.stringify({
+                appPubKey: parsedToken.wallets[0].public_key,
+            }),
+        });
+        if (res.status === 200) {
+            console.log("JWT Verification is Successful");
+            // allow login
+        } else {
+            console.log("JWT Verification Failed");
+        }
+    };
 
-    // parse the idToken from the user object
-    const base64Url = user?.idToken.split(".")[1];
-    const base64 = base64Url.replace("-", "+").replace("_", "/");
-    const parsedToken = JSON.parse(window.atob(base64));
+    const logout = async () => {
+        if (!web3auth) {
+            console.log("web3auth not initialized yet");
+            return;
+        }
+        await web3auth.logout();
+        setProvider(null);
+    };
 
-    // Validate idToken with server
-    const res = await fetch("/api/hello", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + user.idToken,
-      },
-      body: JSON.stringify({ appPubKey: parsedToken.wallets[0].public_key }),
-    });
-    if (res.status === 200) {
-      console.log("JWT Verification is Successful");
-      // allow login
-    } else {
-      console.log("JWT Verification Failed");
-    }
-  };
+    const getChainId = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const chainId = await rpc.getChainId();
+        console.log(chainId);
+    };
+    const getAccounts = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const address = await rpc.getAccounts();
+        console.log(address);
+    };
 
-  const logout = async () => {
-    if (!web3auth) {
-      console.log("web3auth not initialized yet");
-      return;
-    }
-    await web3auth.logout();
-    setProvider(null);
-  };
+    const getBalance = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const balance = await rpc.getBalance();
+        console.log(balance);
+    };
 
-  const getChainId = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const chainId = await rpc.getChainId();
-    console.log(chainId);
-  };
-  const getAccounts = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const address = await rpc.getAccounts();
-    console.log(address);
-  };
+    const sendTransaction = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const receipt = await rpc.sendTransaction();
+        console.log(receipt);
+    };
 
-  const getBalance = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const balance = await rpc.getBalance();
-    console.log(balance);
-  };
+    const signMessage = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const signedMessage = await rpc.signMessage();
+        console.log(signedMessage);
+    };
 
-  const sendTransaction = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const receipt = await rpc.sendTransaction();
-    console.log(receipt);
-  };
+    const getPrivateKey = async () => {
+        if (!provider) {
+            console.log("provider not initialized yet");
+            return;
+        }
+        const rpc = new RPC(provider);
+        const privateKey = await rpc.getPrivateKey();
+        console.log(privateKey);
+    };
+    const loggedInView = (
+        <>
+            <button onClick={getUserInfo} className="card">
+                Get User Info
+            </button>
+            <button onClick={getChainId} className="card">
+                Get Chain ID
+            </button>
+            <button onClick={getAccounts} className="card">
+                Get Accounts
+            </button>
+            <button onClick={getBalance} className="card">
+                Get Balance
+            </button>
+            <button onClick={sendTransaction} className="card">
+                Send Transaction
+            </button>
+            <button onClick={signMessage} className="card">
+                Sign Message
+            </button>
+            <button onClick={getPrivateKey} className="card">
+                Get Private Key
+            </button>
+            <button onClick={logout} className="card">
+                Log Out
+            </button>
 
-  const signMessage = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const signedMessage = await rpc.signMessage();
-    console.log(signedMessage);
-  };
+            <div id="console" style={{ whiteSpace: "pre-line" }}>
+                <p style={{ whiteSpace: "pre-line" }}></p>
+            </div>
+        </>
+    );
 
-  const getPrivateKey = async () => {
-    if (!provider) {
-      console.log("provider not initialized yet");
-      return;
-    }
-    const rpc = new RPC(provider);
-    const privateKey = await rpc.getPrivateKey();
-    console.log(privateKey);
-  };
-  const loggedInView = (
-    <>
-      <button onClick={getUserInfo} className="card">
-        Get User Info
-      </button>
-      <button onClick={getChainId} className="card">
-        Get Chain ID
-      </button>
-      <button onClick={getAccounts} className="card">
-        Get Accounts
-      </button>
-      <button onClick={getBalance} className="card">
-        Get Balance
-      </button>
-      <button onClick={sendTransaction} className="card">
-        Send Transaction
-      </button>
-      <button onClick={signMessage} className="card">
-        Sign Message
-      </button>
-      <button onClick={getPrivateKey} className="card">
-        Get Private Key
-      </button>
-      <button onClick={logout} className="card">
-        Log Out
-      </button>
+    const unloggedInView = (
+        <button onClick={login} className="card">
+            Login
+        </button>
+    );
 
-      <div id="console" style={{ whiteSpace: "pre-line" }}>
-        <p style={{ whiteSpace: "pre-line" }}></p>
-      </div>
-    </>
-  );
+    return (
+        <div className="container">
+            <h1 className="title">
+                <a target="_blank" href="http://web3auth.io/" rel="noreferrer">
+                    Web3Auth
+                </a>
+                & ReactJS Example
+            </h1>
 
-  const unloggedInView = (
-    <button onClick={login} className="card">
-      Login
-    </button>
-  );
+            <div className="grid">
+                {provider ? loggedInView : unloggedInView}
+            </div>
 
-  return (
-    <div className="container">
-      <h1 className="title">
-        <a target="_blank" href="http://web3auth.io/" rel="noreferrer">
-          Web3Auth
-        </a>
-        & ReactJS Example
-      </h1>
-
-      <div className="grid">{provider ? loggedInView : unloggedInView}</div>
-
-      <footer className="footer">
-        <a
-          href="https://github.com/Web3Auth/Web3Auth/tree/master/examples/react-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Source code
-        </a>
-      </footer>
-    </div>
-  );
+            <footer className="footer">
+                <a
+                    href="https://github.com/Web3Auth/Web3Auth/tree/master/examples/react-app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Source code
+                </a>
+            </footer>
+        </div>
+    );
 }
 
 export default App;

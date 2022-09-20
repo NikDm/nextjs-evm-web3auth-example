@@ -91,6 +91,14 @@ a {
   margin-left: 0.5rem;
 }
 
+.w3a-modal {
+  background: none !important;
+}
+
+.w3a-modal__footer {
+  display: none;
+}
+
 @media (max-width: 1200px) {
   .container {
     width: 100%;
